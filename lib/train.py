@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader, random_split
 from torch.optim.lr_scheduler import LambdaLR
-
+import torch.nn.functional as F
 import warnings
 from tqdm import tqdm
 import os
