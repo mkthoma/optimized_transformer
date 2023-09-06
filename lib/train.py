@@ -1,5 +1,5 @@
 from .model import build_transformer
-from .dataset import BilingualDataset, causal_mask
+from .dataset import    , causal_mask
 from .config import get_config, get_weights_file_path
 
 import torchtext.datasets as datasets
@@ -179,32 +179,33 @@ def get_ds(config):
     # Only has train split, so we divide it ourselves
     ds_raw = load_dataset('opus_books', f"{config['lang_src']}-{config['lang_tgt']}", split='train')
 
-    # Build tokenizers
+    #Build tokenizers
     tokenizer_src = get_or_build_tokenizer(config, ds_raw, config['lang_src'])
     tokenizer_tgt = get_or_build_tokenizer(config, ds_raw, config['lang_tgt'])
 
-    # Keep 90% for training, 10% for validation
+    #Keep 90% for training, 10% for validation
     train_ds_size = int(len(ds_raw) * 0.9)
     val_ds_size = len(ds_raw) - train_ds_size
     train_ds_raw, val_ds_raw = random_split(ds_raw, [train_ds_size, val_ds_size])
 
-    train_dataloader = DataLoader(
-        train_ds_raw,
-        batch_size=config['batch_size'],
-        shuffle=True,
-        num_workers=config['num_workers'],
-        persistent_workers=True,
-        pin_memory=True,
-        collate_fn=dynamic_padding_collate
-    )
-    val_dataloader = DataLoader(
-        val_ds_raw,
-        batch_size=1,
-        shuffle=False,
-        num_workers=config['num_workers'],
-        persistent_workers=True,
-        pin_memory=True
-    )
+    train_ds = BilingualDataset(train_ds_raw, tokenizer_src, tokenizer_tgt, config['lang_src'], config['lang_tgt'], config['seq_len'])
+    val_ds = BilingualDataset(val_ds_raw, tokenizer_src, tokenizer_tgt, config['lang_src'], config['lang_tgt'], config['seq_len'])
+
+    #Find the max length of each sentence in source & target sentence
+    max_len_src = 0
+    max_len_tgt = 0
+
+    for item in ds_raw:
+        src_ids = tokenizer_src.encode(item['translation'][config['lang_src']]).ids
+        tgt_ids = tokenizer_tgt.encode(item['translation'][config['lang_tgt']]).ids
+        max_len_src = max(max_len_src, len(src_ids))
+        max_len_tgt = max(max_len_tgt, len(tgt_ids))
+
+    print(f'Max length of source sentence: {max_len_src}')
+    print(f'Max length of target sentence: {max_len_tgt}')
+
+    train_dataloader = DataLoader(train_ds, batch_size=config['batch_size'], shuffle=True, num_workers=config['num_workers'], persistent_workers=True, pin_memory=True, collate_fn=dynamic_padding_collate)
+    val_dataloader = DataLoader(val_ds, batch_size=1, shuffle=False, num_workers=config['num_workers'], persistent_workers=True, pin_memory=True)
 
     return train_dataloader, val_dataloader, tokenizer_src, tokenizer_tgt
 
