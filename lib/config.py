@@ -6,10 +6,10 @@ def get_config():
         "num_epochs": 20,
         "lr": 10**-4,
         # "seq_len": 350, #Italian
-        "seq_len": 490, #French
+        "seq_len": 160, #French
         "d_model": 512,
         "lang_src": "en",
-        "lang_tgt": "fr ",
+        "lang_tgt": "fr",
         "model_folder": "weights",
         "model_basename": "tmodel_",
         "preload": False,
