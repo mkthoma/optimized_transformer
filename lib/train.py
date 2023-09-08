@@ -133,79 +133,96 @@ def get_or_build_tokenizer(config, ds,lang):
         tokenizer = Tokenizer.from_file(str(tokenizer_path))
     return tokenizer
 
-def collate_batch(batch,train_set):
-    encoder_input_list , decoder_input_list, encoder_mask_list, decoder_mask_list, label_list,src_text_list,target_text_list  = [],[],[],[],[],[],[]
-    max_en_batch_len = max(x['encoder_token_len'] for x in batch)
-    max_de_batch_len = max(x['decoder_token_len']  for x in batch)
+#This function adds dynamic padding to each batch and also adds encoder mask and decoder mask for dataset.
+def collate_fn(batch, tokenizer_tgt):
+    encoder_inputs, decoder_inputs, labels, src_texts, tgt_texts = zip(*batch)
+    decoder_inputs = [item["decoder_input"] for item in batch]
+    encoder_inputs = [item["encoder_input"] for item in batch]
+    src_texts = [item["src_text"] for item in batch]
+    tgt_texts = [item["tgt_text"] for item in batch]
+    labels = [item["label"] for item in batch]
+    pad_token = torch.tensor(
+        [tokenizer_tgt.token_to_id("[PAD]")], dtype=torch.int64)
+    max_decoder_length = max(len(seq) for seq in decoder_inputs)
+    max_encoder_length = max(len(seq) for seq in encoder_inputs)
+    padded_decoder_inputs = []
+    padded_encoder_inputs = []
+    padded_label_inputs = []
+    encoder_masks = []
+    decoder_masks = []
 
-    # process
-    for b in batch:
-        # remove outliers or edge cases
-        if train_set and (len(b['encoder_input'])<=1 or len(b['encoder_input'])>=150 or len(b['decoder_input']) >= len(b['encoder_input']) + 10):
-            #print(f"length of encoder {len(b['encoder_input'])} or decoder {len(b['decoder_input'])} does not suit")
+    for decoder, encoder, label in zip(decoder_inputs, encoder_inputs, labels):
+        decoder_padding_length = max_decoder_length - len(decoder)
+        encoder_padding_length = max_encoder_length - len(encoder)
+
+        # Encoder Input
+        encoder_input = torch.cat([encoder,
+                torch.tensor([pad_token] * encoder_padding_length,
+                             dtype=torch.int64),],dim=0,)
+
+        padded_encoder_inputs.append(encoder_input)
+
+        # Decoder Input
+        decoder_input = torch.cat([decoder,
+                torch.tensor([pad_token] * decoder_padding_length,
+                dtype=torch.int64),],dim=0,)
+        
+        padded_decoder_inputs.append(decoder_input)
+
+        # Label
+        label_input = torch.cat([label,torch.tensor([pad_token] * decoder_padding_length,
+        dtype=torch.int64),],dim=0,)
+        padded_label_inputs.append(label_input)
+
+        # Encoder Mask
+        encoders_mask = (encoder_input != pad_token).unsqueeze(0).unsqueeze(0).int()
+
+        encoder_masks.append(encoders_mask)
+
+        # Decoder Mask
+        decoder_mask = (decoder_input != pad_token).unsqueeze(0).int() & causal_mask(
+            decoder_input.size(0))
+
+        decoder_masks.append(decoder_mask)
+
+    return {
+        "encoder_input": torch.stack(padded_encoder_inputs),
+        "decoder_input": torch.stack(padded_decoder_inputs),
+        "encoder_mask": torch.stack(encoder_masks),
+        "decoder_mask": torch.stack(decoder_masks),
+        "label": torch.stack(padded_label_inputs),
+        "src_text": src_texts,
+        "tgt_text": tgt_texts,
+    }
+
+def clean_raw_dataset(raw_dataset):
+    new_data_list = []
+    new_index = 0
+    for index, each_dataset in enumerate(raw_dataset):
+        src_text = each_dataset["translation"][config["lang_src"]]
+        tgt_text = each_dataset["translation"][config["lang_tgt"]]
+
+        if len(src_text) > 150 or len(tgt_text) > len(src_text) + 10:
             continue
-            
-        # dynamic padding
-        enc_num_padding_tokens = max_en_batch_len - len(b['encoder_input']) # we will add <s> and </s>
-        dec_num_padding_tokens = max_de_batch_len - len(b['decoder_input'])
 
-        # Make sure the number of padding tokens is not negative. If it is, the sentence is too long
-        if enc_num_padding_tokens < 0 or dec_num_padding_tokens < 0:
-            raise ValueError("Sentence is too long")
-
-        # Add <s> and </s> token
-        encoder_input = torch.cat(
-            [
-                b['encoder_input'],
-                torch.tensor([b['pad_token']] * enc_num_padding_tokens, dtype=torch.int64)
-            ],
-            dim=0
-        )
-
-        encoder_mask = (encoder_input != b['pad_token']).unsqueeze(0).unsqueeze(0).unsqueeze(0).int() # 1,1,seq_len
-
-        # Add only </s> token
-        label = torch.cat(
-            [
-                b['label'],
-                torch.tensor([b['pad_token']] * dec_num_padding_tokens, dtype=torch.int64)
-            ],
-            dim=0
-        )
-
-        # Add only <s> token
-        decoder_input = torch.cat(
-            [
-                b['decoder_input'],
-                torch.tensor([b['pad_token']] * dec_num_padding_tokens, dtype=torch.int64)
-            ],
-            dim=0
-        )
-        decoder_mask = ((decoder_input != b['pad_token']).unsqueeze(0).int() & causal_mask(decoder_input.size(0))).unsqueeze(0)
-
-        # append all data
-        encoder_input_list.append(encoder_input)
-        decoder_input_list.append(decoder_input)
-        decoder_mask_list.append(decoder_mask)
-        encoder_mask_list.append(encoder_mask)
-        label_list.append(label)
-        src_text_list.append(b['src_text'])
-        target_text_list.append(b['tgt_text'])
-
-    return{
-                "encoder_input": torch.vstack(encoder_input_list), 
-                "decoder_input": torch.vstack(decoder_input_list), 
-                "encoder_mask": torch.vstack(encoder_mask_list),
-                "decoder_mask": torch.vstack(decoder_mask_list),
-                "label": torch.vstack(label_list), 
-                "src_text": src_text_list,
-                "tgt_text": target_text_list
+        new_data_list.append(
+            {
+                "id": new_index,
+                "translation": {
+                    config["lang_src"]: src_text,
+                    config["lang_tgt"]: tgt_text,
+                },
             }
+        )
+        new_index += 1
+    cleaned_dataset = data_datasets.Dataset.from_list(new_data_list)
+    return cleaned_dataset
 
 
 def get_ds(config):
 
     ds_raw = load_dataset('opus_books',f"{config['lang_src']}-{config['lang_tgt']}",split='train' )
+    ds_raw = clean_raw_dataset(ds_raw)
 
     tokenizer_src = get_or_build_tokenizer(config, ds_raw, config['lang_src'])
     tokenizer_tgt = get_or_build_tokenizer(config, ds_raw, config['lang_tgt'])
@@ -217,8 +234,8 @@ def get_ds(config):
     train_ds = BilingualDataset(train_ds_raw, tokenizer_src,tokenizer_tgt,config['lang_src'],config['lang_tgt'])
     val_ds   = BilingualDataset(val_ds_raw, tokenizer_src,tokenizer_tgt,config['lang_src'],config['lang_tgt'])
 
-    train_dataloader = DataLoader(train_ds, batch_size = config['batch_size'],shuffle=True,collate_fn= lambda batch: collate_batch(batch, train_set=True),num_workers=16)
-    val_dataloader   = DataLoader(val_ds, batch_size = 1,shuffle=True,collate_fn = lambda batch: collate_batch(batch, train_set=False),num_workers=16)
+    train_dataloader = DataLoader(train_ds, batch_size = config['batch_size'],shuffle=True,collate_fn=lambda batch: collate_fn(batch, tokenizer_tgt),num_workers=12)
+    val_dataloader   = DataLoader(val_ds, batch_size = 1,shuffle=True,collate_fn =lambda batch: collate_fn(batch, tokenizer_tgt),num_workers=12)
 
     return train_dataloader,val_dataloader, tokenizer_src, tokenizer_tgt
 

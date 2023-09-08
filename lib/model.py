@@ -225,4 +225,4 @@ def build_transformer(src_vocab_size, tgt_vocab_size, src_seq_len, tgt_seq_len, 
         if p.dim() > 1:
             nn.init.xavier_uniform_(p)
 
-    return transformer
+    return transformer  
