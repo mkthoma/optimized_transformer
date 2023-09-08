@@ -1,5 +1,5 @@
 from .model import build_transformer
-from .dataset import BilingualDataset, casual_mask
+from .dataset import BilingualDataset, causal_mask
 from .config import get_config, get_weights_file_path
 #from transformers import DataCollatorWithPadding
 
@@ -33,7 +33,7 @@ def greedy_decode(model, source, source_mask, tokenizer_src, tokenizer_tgt, max_
     if decoder_input.size(1) == max_len:
       break
 
-    decoder_mask = casual_mask(decoder_input.size(1)).type_as(source_mask).to(device)
+    decoder_mask = causal_mask(decoder_input.size(1)).type_as(source_mask).to(device)
 
     out = model.decode(encoder_output, source_mask, decoder_input, decoder_mask)
 
@@ -132,10 +132,6 @@ def get_or_build_tokenizer(config, ds,lang):
     else:
         tokenizer = Tokenizer.from_file(str(tokenizer_path))
     return tokenizer
-
-def casual_mask(size):
-    mask = torch.triu(torch.ones((1, size, size)), diagonal=1).type(torch.int)
-    return(mask == 0)
 
 def collate_batch(batch,train_set):
     encoder_input_list , decoder_input_list, encoder_mask_list, decoder_mask_list, label_list,src_text_list,target_text_list  = [],[],[],[],[],[],[]
