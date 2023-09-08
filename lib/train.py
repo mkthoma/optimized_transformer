@@ -196,6 +196,7 @@ def collate_fn(batch, tokenizer_tgt):
     }
 
 def clean_raw_dataset(raw_dataset):
+    config = get_config()
     new_data_list = []
     new_index = 0
     for index, each_dataset in enumerate(raw_dataset):
