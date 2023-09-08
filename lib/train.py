@@ -1,6 +1,6 @@
-from model import build_transformer
-from dataset import BilingualDataset, casual_mask
-from config import get_config, get_weights_file_path
+from .model import build_transformer
+from .dataset import BilingualDataset, casual_mask
+from .config import get_config, get_weights_file_path
 #from transformers import DataCollatorWithPadding
 
 import torchtext.datasets as datasets
