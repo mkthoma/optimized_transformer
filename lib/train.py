@@ -181,7 +181,7 @@ def collate_batch(batch,train_set):
             ],
             dim=0
         )
-        decoder_mask = ((decoder_input != b['pad_token']).unsqueeze(0).int() & casual_mask(decoder_input.size(0))).unsqueeze(0)
+        decoder_mask = ((decoder_input != b['pad_token']).unsqueeze(0).int() & causal_mask(decoder_input.size(0))).unsqueeze(0)
 
         # append all data
         encoder_input_list.append(encoder_input)
