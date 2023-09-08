@@ -13,6 +13,7 @@ from tqdm import tqdm
 import os
 from pathlib import Path
 
+import datasets as data_sets
 from datasets import load_dataset
 from tokenizers import Tokenizer
 from tokenizers.models import WordLevel
@@ -216,7 +217,7 @@ def clean_raw_dataset(raw_dataset):
             }
         )
         new_index += 1
-    cleaned_dataset = data_datasets.Dataset.from_list(new_data_list)
+    cleaned_dataset = data_sets.Dataset.from_list(new_data_list)
     return cleaned_dataset
 
 
