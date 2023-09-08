@@ -28,21 +28,16 @@ class BilingualDataset(Dataset):
         enc_input_tokens = self.tokenizer_src.encode(src_text).ids
         dec_input_tokens = self.tokenizer_tgt.encode(tgt_text).ids
 
-        # Add the start and end of sentence  & padding tokens
-        enc_num_padding_tokens = self.seq_len - len(enc_input_tokens) - 2 # We will add <s> and </s>
-        # We will only add  <s> and </s> only on the label
-        dec_num_padding_tokens = self.seq_len - len(dec_input_tokens) - 1 # EOS not added for decoder
 
-        #Make sure the number of padding tokens is not negativ. If it is , sentence too long
-        if enc_num_padding_tokens < 0 or dec_num_padding_tokens < 0:
-            raise ValueError("Sentence too long")   
         
         # Add <s> and </s> token
         encoder_input = torch.cat(
             [
                 self.sos_token,
                 torch.tensor(enc_input_tokens, dtype=torch.int64),
-                self.eos_token],
+                self.eos_token,
+                torch.tensor([self.pad_token] * enc_num_padding_tokens, dtype=torch.int64),
+            ],
             dim=0,
         )
 
@@ -50,7 +45,9 @@ class BilingualDataset(Dataset):
         decoder_input = torch.cat(
             [   
                 self.sos_token,
-                torch.tensor(dec_input_tokens, dtype=torch.int64)],
+                torch.tensor(dec_input_tokens, dtype=torch.int64),
+                torch.tensor([self.pad_token] * dec_num_padding_tokens, dtype=torch.int64),
+            ],
             dim=0
         )    
         
@@ -59,7 +56,9 @@ class BilingualDataset(Dataset):
         label = torch.cat(
             [
                 torch.tensor(dec_input_tokens, dtype=torch.int64),
-                self.eos_token],
+                self.eos_token,
+                torch.tensor([self.pad_token] * dec_num_padding_tokens, dtype=torch.int64),
+            ],
             dim=0,
         )
 
@@ -76,7 +75,8 @@ class BilingualDataset(Dataset):
             "label": label,  #seq_len
             "tgt_text": tgt_text,
         }
-    
+
+
 def causal_mask(size):
     # Create a causal mask
     mask = torch.triu(torch.ones((1, size, size)), diagonal=1).type(torch.int)
