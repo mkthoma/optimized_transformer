@@ -136,7 +136,13 @@ def get_or_build_tokenizer(config, ds,lang):
 
 #This function adds dynamic padding to each batch and also adds encoder mask and decoder mask for dataset.
 def collate_fn(batch, tokenizer_tgt):
-    encoder_inputs, decoder_inputs, labels, src_texts, tgt_texts = zip(*batch)
+    encoder_inputs = batch["encoder_input"].to(device)
+    decoder_inputs = batch["decoder_input"].to(device)
+    labels = batch["label"]
+    src_texts = batch["label"][0]
+    tgt_texts = batch["tgt_text"][0]
+
+    # encoder_inputs, decoder_inputs, labels, src_texts, tgt_texts = zip(*batch)
     decoder_inputs = [item["decoder_input"] for item in batch]
     encoder_inputs = [item["encoder_input"] for item in batch]
     src_texts = [item["src_text"] for item in batch]
