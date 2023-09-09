@@ -60,11 +60,7 @@ class BilingualDataset(Dataset):
             "decoder_input": decoder_input, # (seq_len)
             "label": label, # (seq_len)
             "src_text": src_text,
-            "tgt_text": tgt_text,
-            "encoder_token_len":len(encoder_input),
-            "decoder_token_len":len(decoder_input),
-            "pad_token": self.pad_token
-        })
+            "tgt_text": tgt_text})
 
 def causal_mask(size):
     mask = torch.triu(torch.ones((1, size, size)), diagonal=1).type(torch.int)
