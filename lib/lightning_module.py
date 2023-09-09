@@ -32,6 +32,7 @@ class CustomTransformer(pl.LightningModule):
         _, _, self.tokenizer_src, self.tokenizer_tgt = get_ds(self.config)
         self.model = get_model(config, self.tokenizer_src.get_vocab_size(), self.tokenizer_tgt.get_vocab_size()).to(self.device)
         self.initial_epoch = 0 
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.config['lr'], eps=1e-9)
         self.loss_fn = nn.CrossEntropyLoss(ignore_index=self.tokenizer_src.token_to_id('[PAD]'), label_smoothing=0.1)
         self.val_predicted = []
         self.val_expected = []
