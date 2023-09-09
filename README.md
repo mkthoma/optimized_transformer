@@ -53,13 +53,5 @@ The model can be run using PyTorch Lightning framework as shown below:
     ```
 ## Training Logs
 
-We can see that in the $10^{th}$ epoch the loss is below 4. 
-![image](https://github.com/mkthoma/custom_transformer/assets/135134412/e994b869-e15f-4d72-aa77-26e603161948)
-
-Tensorboard train loss on $1^{st}$ epoch
-
-![image](https://github.com/mkthoma/custom_transformer/assets/135134412/388b2b19-c685-41e2-9aa3-b31b65df8671)
-
-Tensorboard train loss on $10^{th}$ epoch
-
-![image](https://github.com/mkthoma/custom_transformer/assets/135134412/fc180bf1-d8b4-45f0-a60c-add5069f3406)
+From the trainning logs we can see the loss is below 1.8  
+![image](https://github.com/mkthoma/optimized_transformer/assets/135134412/fcf0dc00-deb1-4208-a0b3-cca087920cd2)
