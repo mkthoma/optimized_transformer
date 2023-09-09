@@ -137,15 +137,10 @@ def get_or_build_tokenizer(config, ds,lang):
 #This function adds dynamic padding to each batch
 def collate_batch(batch,train_set):
     encoder_input_list , decoder_input_list, encoder_mask_list, decoder_mask_list, label_list,src_text_list,target_text_list  = [],[],[],[],[],[],[]
-    max_en_batch_len = max(x['encoder_token_len'] for x in batch)
-    max_de_batch_len = max(x['decoder_token_len']  for x in batch)
+    max_en_batch_len = max(x['enc_token_len'] for x in batch)
+    max_de_batch_len = max(x['dec_token_len']  for x in batch)
 
     for b in batch:
-        # remove outliers or edge cases
-        if train_set and (len(b['encoder_input'])<=1 or len(b['encoder_input'])>=150 or len(b['decoder_input']) >= len(b['encoder_input']) + 10):
-            #print(f"length of encoder {len(b['encoder_input'])} or decoder {len(b['decoder_input'])} does not suit")
-            continue
-
         # dynamic padding
         enc_num_padding_tokens = max_en_batch_len - len(b['encoder_input']) # we will add <s> and </s>
         dec_num_padding_tokens = max_de_batch_len - len(b['decoder_input'])

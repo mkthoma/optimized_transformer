@@ -14,7 +14,6 @@ class BilingualDataset(Dataset):
         self.eos_token = torch.tensor([tokenizer_tgt.token_to_id("[EOS]")], dtype=torch.int64)
         self.pad_token = torch.tensor([tokenizer_tgt.token_to_id("[PAD]")], dtype=torch.int64)
 
-
     def __len__(self):
         return(len(self.ds))
 
@@ -60,7 +59,9 @@ class BilingualDataset(Dataset):
             "decoder_input": decoder_input, # (seq_len)
             "label": label, # (seq_len)
             "src_text": src_text,
-            "tgt_text": tgt_text})
+            "tgt_text": tgt_text,
+            "enc_token_len": len(enc_input_tokens),
+            "dec_token_len": len(dec_input_tokens)})
 
 def causal_mask(size):
     mask = torch.triu(torch.ones((1, size, size)), diagonal=1).type(torch.int)
