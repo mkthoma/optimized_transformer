@@ -32,7 +32,6 @@ class CustomTransformer(pl.LightningModule):
         _, _, self.tokenizer_src, self.tokenizer_tgt = get_ds(self.config)
         self.model = get_model(config, self.tokenizer_src.get_vocab_size(), self.tokenizer_tgt.get_vocab_size()).to(self.device)
         self.initial_epoch = 0 
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.config['lr'], eps=1e-9)
         self.loss_fn = nn.CrossEntropyLoss(ignore_index=self.tokenizer_src.token_to_id('[PAD]'), label_smoothing=0.1)
         self.val_predicted = []
         self.val_expected = []
@@ -77,6 +76,23 @@ class CustomTransformer(pl.LightningModule):
     def val_dataloader(self):
         _, val_loader, _, _ = get_ds(self.config)
         return val_loader
+    
+    def configure_optimizers(self):
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=self.config["lr"], eps=1e-9)
+        scheduler = torch.optim.lr_scheduler.OneCycleLR(
+            optimizer,
+            max_lr=self.config["max_lr"],
+            epochs=self.config["num_epochs"],
+            pct_start=1/10 if self.config["num_epochs"] != 1 else 0.5,
+            steps_per_epoch=len(self.train_dataloader()),
+            div_factor=10,
+            three_phase=True,
+            final_div_factor=10,
+            anneal_strategy="linear"
+        )
+        return [optimizer], [
+            {"scheduler": scheduler, "interval": "step", "frequency": 1}
+        ]
 
     def training_step(self, batch, batch_idx):
         encoder_input = batch['encoder_input']
@@ -94,23 +110,6 @@ class CustomTransformer(pl.LightningModule):
         self.writer.flush()
         loss.backward(retain_graph=True)
         return loss
-
-    def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=self.config["lr"], eps=1e-9)
-        scheduler = torch.optim.lr_scheduler.OneCycleLR(
-            optimizer,
-            max_lr=self.config["max_lr"],
-            epochs=self.config["num_epochs"],
-            pct_start=1/10 if self.config["num_epochs"] != 1 else 0.5,
-            steps_per_epoch=len(self.train_dataloader()),
-            div_factor=10,
-            three_phase=True,
-            final_div_factor=10,
-            anneal_strategy="linear"
-        )
-        return [optimizer], [
-            {"scheduler": scheduler, "interval": "step", "frequency": 1}
-        ]
 
     def validation_step(self, batch, batch_idx):
         max_len = self.config['seq_len']
