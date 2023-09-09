@@ -112,45 +112,47 @@ class CustomTransformer(pl.LightningModule):
             {"scheduler": scheduler, "interval": "step", "frequency": 1}
         ]
 
-    # def validation_step(self, batch, batch_idx):
-    #     max_len = self.config['seq_len']
-    #     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    #     num_examples = 0
-    #     with torch.no_grad():
-    #         encoder_input = batch["encoder_input"].to(device)
-    #         encoder_mask = batch["encoder_mask"].to(device)
-    #         assert encoder_input.size(0) == 1, "Batch size must be 1 for validation"
-    #         model_out = self.greedy_decode(self.model, encoder_input, encoder_mask, self.tokenizer_src, self.tokenizer_tgt, max_len, device)
-    #         source_text = batch["label"][0]
-    #         target_text = batch["tgt_text"][0]
-    #         model_out_text = self.tokenizer_tgt.decode(model_out.detach().cpu().numpy())
+    def validation_step(self, batch, batch_idx):
+        max_len = self.config['seq_len']
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        num_examples = 0
+        with torch.no_grad():
+            encoder_input = batch["encoder_input"].to(device)
+            encoder_mask = batch["encoder_mask"].to(device)
+            assert encoder_input.size(0) == 1, "Batch size must be 1 for validation"
+            model_out = self.greedy_decode(self.model, encoder_input, encoder_mask, self.tokenizer_src, self.tokenizer_tgt, max_len, device)
+            source_text = batch["label"][0]
+            target_text = batch["tgt_text"][0]
+            model_out_text = self.tokenizer_tgt.decode(model_out.detach().cpu().numpy())
 
-    #         self.val_expected.append(target_text)
-    #         self.val_predicted.append(model_out_text)
-    #         org_text = self.tokenizer_src.decode(batch["encoder_input"][0].detach().cpu().numpy())
-    #         if self.val_print_count < 2:
-    #             print(f"{f'SOURCE: ':>12}{org_text}")
-    #             print(f"{f'TARGET: ':>12}{target_text}")
-    #             print(f"{f'PREDICTED: ':>12}{model_out_text}")
-    #             print("\n")
-    #             self.val_print_count += 1
+            self.val_expected.append(target_text)
+            self.val_predicted.append(model_out_text)
+            org_text = self.tokenizer_src.decode(batch["encoder_input"][0].detach().cpu().numpy())
+            if self.val_print_count < 2:
+                print(f"VALIDATION ON EPOCH {self.current_epoch + 1}")
+                print(f"{f'SOURCE: ':>12}{org_text}")
+                print(f"{f'TARGET: ':>12}{target_text}")
+                print(f"{f'PREDICTED: ':>12}{model_out_text}")
+                print("\n")
+                self.val_print_count += 1
 
-    # def on_validation_epoch_start(self):
-    #     self.val_print_count = 0
+    def on_validation_epoch_start(self):
+        self.val_print_count = 0
 
-    # def on_validation_epoch_end(self):
-    #     writer = self.writer
-    #     if writer:
-    #         metric = torchmetrics.CharErrorRate()
-    #         cer = metric(self.val_predicted, self.val_expected)
-    #         writer.add_scalar('validation cer', cer, self.trainer.global_step)
-    #         writer.flush()
+    def on_validation_epoch_end(self):
+        writer = self.writer
+        if writer:
+            metric = torchmetrics.CharErrorRate()
+            cer = metric(self.val_predicted, self.val_expected)
+            writer.add_scalar('validation cer', cer, self.trainer.global_step)
+            writer.flush()
             
-    #         metric = torchmetrics.WordErrorRate()
-    #         wer = metric(self.val_predicted, self.val_expected)
-    #         writer.add_scalar('validation wer', wer, self.trainer.global_step)
-    #         writer.flush()
+            metric = torchmetrics.WordErrorRate()
+            wer = metric(self.val_predicted, self.val_expected)
+            writer.add_scalar('validation wer', wer, self.trainer.global_step)
+            writer.flush()
             
-    #         metric = torchmetrics.BLEUScore()
-    #         bleu = metric(self.val_predicted, self.val_expected)
-    #         writer.add_scalar('validation BLEU', bleu, self.trainer.global_step
+            metric = torchmetrics.BLEUScore()
+            bleu = metric(self.val_predicted, self.val_expected)
+            writer.add_scalar('validation BLEU', bleu, self.trainer.global_step)
+            writer.flush()
