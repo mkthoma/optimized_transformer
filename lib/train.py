@@ -135,83 +135,41 @@ def get_or_build_tokenizer(config, ds,lang):
     return tokenizer
 
 #This function adds dynamic padding to each batch
-def collate_batch(batch,train_set):
-    encoder_input_list , decoder_input_list, encoder_mask_list, decoder_mask_list, label_list,src_text_list,target_text_list  = [],[],[],[],[],[],[]
-    max_en_batch_len = max(x['enc_token_len'] for x in batch)
-    max_de_batch_len = max(x['dec_token_len']  for x in batch)
+def collate_function(batch):
+    encoder_input_max = max(x["enc_token_len"] for x in batch)
+    decoder_input_max = max(x["dec_token_len"] for x in batch)
+
+    max_token_len = max([encoder_input_max, decoder_input_max])
+    max_token_len_2 = max_token_len + 2
+
+    encoder_inputs = []
+    decoder_inputs = []
+    encoder_masks = []
+    decoder_masks = []
+    labels = []
+    src_texts = []
+    tgt_texts = []
 
     for b in batch:
-        # dynamic padding
-        enc_num_padding_tokens = max_en_batch_len - len(b['encoder_input']) # we will add <s> and </s>
-        dec_num_padding_tokens = max_de_batch_len - len(b['decoder_input'])
+        encoder_inputs.append(b["encoder_input"][:max_token_len_2])
+        decoder_inputs.append(b["decoder_input"][:max_token_len_2])
+        encoder_mask = (b["encoder_mask"][0, 0, :max_token_len_2]).unsqueeze(0).unsqueeze(0).unsqueeze(0).int()
+        encoder_masks.append(encoder_mask)
+        decoder_mask = (b["decoder_mask"][0, :max_token_len_2, :max_token_len_2]).unsqueeze(0).unsqueeze(0)
+        decoder_masks.append(decoder_mask)
+        labels.append(b["label"][:max_token_len_2]) 
+        src_texts.append(b["src_text"])
+        tgt_texts.append(b["tgt_text"])
 
- 
-
-        # Make sure the number of padding tokens is not negative. If it is, the sentence is too long
-        if enc_num_padding_tokens < 0 or dec_num_padding_tokens < 0:
-            raise ValueError("Sentence is too long")
-
- 
-
-        # Add <s> and </s> token
-        encoder_input = torch.cat(
-            [
-                b['encoder_input'],
-                torch.tensor([b['pad_token']] * enc_num_padding_tokens, dtype=torch.int64)
-            ],
-            dim=0
-        )
-
- 
-
-        encoder_mask = (encoder_input != b['pad_token']).unsqueeze(0).unsqueeze(0).unsqueeze(0).int() # 1,1,seq_len
-
- 
-
-        # Add only </s> token
-        label = torch.cat(
-            [
-                b['label'],
-                torch.tensor([b['pad_token']] * dec_num_padding_tokens, dtype=torch.int64)
-            ],
-            dim=0
-        )
-
- 
-
-        # Add only <s> token
-        decoder_input = torch.cat(
-            [
-                b['decoder_input'],
-                torch.tensor([b['pad_token']] * dec_num_padding_tokens, dtype=torch.int64)
-            ],
-            dim=0
-        )
-        decoder_mask = ((decoder_input != b['pad_token']).unsqueeze(0).int() & casual_mask(decoder_input.size(0))).unsqueeze(0)
-
- 
-
-        # append all data
-        encoder_input_list.append(encoder_input)
-        decoder_input_list.append(decoder_input)
-        decoder_mask_list.append(decoder_mask)
-        encoder_mask_list.append(encoder_mask)
-        label_list.append(label)
-        src_text_list.append(b['src_text'])
-        target_text_list.append(b['tgt_text'])
-
- 
-
-    return{
-                "encoder_input": torch.vstack(encoder_input_list), 
-                "decoder_input": torch.vstack(decoder_input_list), 
-                "encoder_mask": torch.vstack(encoder_mask_list),
-                "decoder_mask": torch.vstack(decoder_mask_list),
-                "label": torch.vstack(label_list), 
-                "src_text": src_text_list,
-                "tgt_text": target_text_list
-            }
-
+    return {
+        "encoder_input": torch.vstack(encoder_inputs),
+        "decoder_input": torch.vstack(decoder_inputs),
+        "encoder_mask": torch.vstack(encoder_masks),
+        "decoder_mask": torch.vstack(decoder_masks),
+        "label": torch.vstack(labels),
+        "src_text": src_texts,
+        "tgt_text": tgt_texts,
+    }
  
 def clean_raw_dataset(raw_dataset):
     config = get_config()
@@ -253,8 +211,8 @@ def get_ds(config):
     train_ds = BilingualDataset(train_ds_raw, tokenizer_src,tokenizer_tgt,config['lang_src'],config['lang_tgt'])
     val_ds   = BilingualDataset(val_ds_raw, tokenizer_src,tokenizer_tgt,config['lang_src'],config['lang_tgt'])
 
-    train_dataloader = DataLoader(train_ds, batch_size = config['batch_size'],shuffle=True,collate_fn= lambda batch: collate_batch(batch, train_set=True),num_workers=12)
-    val_dataloader   = DataLoader(val_ds, batch_size = 1,shuffle=True,collate_fn = lambda batch: collate_batch(batch, train_set=False),num_workers=12)
+    train_dataloader = DataLoader(train_ds, batch_size = config['batch_size'],shuffle=True,collate_fn=collate_function,num_workers=12)
+    val_dataloader   = DataLoader(val_ds, batch_size = 1,shuffle=True,num_workers=12)
     
     return train_dataloader,val_dataloader, tokenizer_src, tokenizer_tgt
 
