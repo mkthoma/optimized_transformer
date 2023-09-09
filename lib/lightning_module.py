@@ -36,6 +36,7 @@ class CustomTransformer(pl.LightningModule):
         self.val_predicted = []
         self.val_expected = []
         self.val_print_count = 0
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.config["lr"], eps=1e-9)
         self.writer = SummaryWriter(config['experiment_name'])
         self.train_losses = []
 
@@ -78,7 +79,7 @@ class CustomTransformer(pl.LightningModule):
         return val_loader
     
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=self.config["lr"], eps=1e-9)
+        optimizer = self.optimizer
         scheduler = torch.optim.lr_scheduler.OneCycleLR(
             optimizer,
             max_lr=self.config["max_lr"],
@@ -90,9 +91,7 @@ class CustomTransformer(pl.LightningModule):
             final_div_factor=10,
             anneal_strategy="linear"
         )
-        return [optimizer], [
-            {"scheduler": scheduler, "interval": "step", "frequency": 1}
-        ]
+        return [optimizer], [{"scheduler": scheduler, "interval": "epoch"}]
 
     def training_step(self, batch, batch_idx):
         encoder_input = batch['encoder_input']
