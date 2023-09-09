@@ -212,7 +212,7 @@ def get_ds(config):
     val_ds = BilingualDataset(val_ds_raw, tokenizer_src, tokenizer_tgt, config['lang_src'], config['lang_tgt'], config['seq_len'])
 
     train_dataloader = DataLoader(train_ds, batch_size = config['batch_size'],shuffle=True,collate_fn=collate_function,num_workers=12)
-    val_dataloader   = DataLoader(val_ds, batch_size = 1,shuffle=True,num_workers=12)
+    val_dataloader   = DataLoader(val_ds, batch_size = 1,shuffle=False,num_workers=12)
     
     return train_dataloader,val_dataloader, tokenizer_src, tokenizer_tgt
 
