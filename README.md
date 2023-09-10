@@ -54,7 +54,9 @@ The model can be run using PyTorch Lightning framework as shown below:
 ## Training Logs
 
 From the trainning logs we can see the loss is below 1.8 after running for 50 epochs.  
+
 ![image](https://github.com/mkthoma/optimized_transformer/assets/135134412/5ab8ceed-ecc2-4dde-88b9-a71d17e079fb)
 
 Tensorboard logs:
+
 ![image](https://github.com/mkthoma/optimized_transformer/assets/135134412/321899b7-c5f3-4907-9696-1b4f70622221)
